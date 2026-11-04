@@ -17,11 +17,21 @@ function M.jump(opts)
     opts.multi_window == nil and Config.options.multi_window or opts.multi_window,
     mode
   )
+  local labels = Config.options.labels
+  if opts.lines then
+    -- Keep the configured order, then add missing letters of the opposite case.
+    for char in Config.options.labels:gmatch(".") do
+      local other = char:match("%l") and char:upper() or char:lower()
+      if not labels:find(other, 1, true) then
+        labels = labels .. other
+      end
+    end
+  end
   require("motion_tools.search").clear()
   return require("motion_tools.session").run({
     kind = opts.lines and "lines" or opts.treesitter and "syntax_search" or "jump",
     wins = wins,
-    labels = Config.options.labels,
+    labels = labels,
     pattern = opts.pattern,
     immediate = opts.pattern ~= nil,
     range = opts.range,

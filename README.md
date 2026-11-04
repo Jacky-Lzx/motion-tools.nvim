@@ -44,6 +44,10 @@ returns to the query. Ctrl-U clears the query. Escape/Ctrl-C cancels. A unique
 query match jumps immediately on Enter/Tab. Labels have equal length, expanding
 to two or more letters for larger result sets.
 
+Line jumps (`<leader>j` / `<leader>k`) use the configured letters followed by
+their missing opposite-case counterparts. The default alphabet provides 52
+distinct single-letter labels; type each label with the displayed case.
+
 Normal jumps can cross ordinary windows in the current tab. Visual and operator
 jumps stay in the source window. Successful jumps enter the jumplist; cancellation
 restores views without changing text or search history. Ordinary jumps leave `/`

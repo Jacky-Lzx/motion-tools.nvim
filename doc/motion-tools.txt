@@ -47,6 +47,10 @@ matches and positional buffer atoms are outside this label matcher. Native /
 and ? searches retain Neovim's full search syntax and behavior.
 
 lines() immediately labels the first non-whitespace character of nonblank lines.
+Its alphabet keeps the configured letters in order, then appends any missing
+opposite-case counterparts. The default provides 52 single-letter labels before
+expanding to longer sequences. Labels are case-sensitive: a and A select
+different targets.
 Closed folds expose only their header. Normal mode can include ordinary windows
 in the current tab; floating windows and other tabs are excluded. Set
 opts.multi_window=false to restrict the operation to the current window.
