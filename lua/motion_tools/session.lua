@@ -1,5 +1,6 @@
 local Match = require("motion_tools.match")
 local View = require("motion_tools.view")
+local Repeat = require("motion_tools.repeat")
 local M = { active = false }
 local function key(name)
   return vim.api.nvim_replace_termcodes(name, true, false, true)
@@ -74,7 +75,23 @@ function M.run(opts)
   if M.active then
     return false
   end
+  local mode = vim.fn.mode(true)
+  local repeat_key = (opts.kind or "jump")
+    .. ":"
+    .. (mode:sub(1, 2) == "no" and vim.v.operator or "normal")
+  local last = Repeat.last[repeat_key]
+  if Repeat.repeating and last then
+    local matches = opts.collect(last.query)
+    local match = matches[last.index]
+    if not match then
+      M.cancel_operator()
+      return false
+    end
+    return M.move(match, opts.range), match
+  end
   M.active = true
+  Repeat.reading = true
+  require("motion_tools.search").clear()
   local source = vim.api.nvim_get_current_win()
   local snapshot, ticks = {}, {}
   for _, win in ipairs(opts.wins) do
@@ -83,7 +100,7 @@ function M.run(opts)
     ticks[buf] = vim.api.nvim_buf_get_changedtick(buf)
   end
   local query, prefix, phase = opts.pattern or "", "", opts.immediate and "labels" or "query"
-  local selected
+  local selected, selected_index
   local ok, err = xpcall(function()
     local matches, warning
     local dirty = true
@@ -96,28 +113,36 @@ function M.run(opts)
         Match.labels(matches, opts.labels)
         dirty = false
       end
-      View.show(matches, prefix, phase == "labels")
+      if opts.panel then
+        local preview = {}
+        for _, match in ipairs(matches) do
+          if match.label:sub(1, #prefix) == prefix then
+            preview = { match }
+            break
+          end
+        end
+        View.show(preview, "", false)
+      else
+        View.show(matches, prefix, phase == "labels")
+      end
       if opts.panel then
         View.panel(matches, prefix)
         vim.cmd.redraw()
       end
       local message = phase == "labels" and ("label: " .. prefix) or ("find: " .. query)
-      vim.api.nvim_echo({
-        {
-          "motion-tools "
-            .. message
-            .. "  ["
-            .. #matches
-            .. "]"
-            .. (warning and " " .. warning or ""),
-          "Question",
-        },
-      }, false, {})
+      View.prompt(
+        "motion-tools " .. message .. "  [" .. #matches .. "]" .. (warning and " " .. warning or "")
+      )
       local char = vim.fn.getcharstr()
       if char == key("<Esc>") or char == key("<C-c>") then
         break
       end
       local stale = false
+      for win, state in pairs(snapshot) do
+        if not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= state.buf then
+          stale = true
+        end
+      end
       for buf, tick in pairs(ticks) do
         if not vim.api.nvim_buf_is_valid(buf) or vim.api.nvim_buf_get_changedtick(buf) ~= tick then
           stale = true
@@ -138,7 +163,7 @@ function M.run(opts)
       elseif phase == "query" then
         if char == key("<CR>") or char == key("<Tab>") then
           if #matches == 1 then
-            selected = matches[1]
+            selected, selected_index = matches[1], 1
             break
           end
           if #matches > 1 then
@@ -151,9 +176,9 @@ function M.run(opts)
         end
       else
         local next_prefix, valid = prefix .. char, false
-        for _, match in ipairs(matches) do
+        for index, match in ipairs(matches) do
           if match.label == next_prefix then
-            selected = match
+            selected, selected_index = match, index
             break
           end
           if match.label:sub(1, #next_prefix) == next_prefix then
@@ -170,8 +195,8 @@ function M.run(opts)
     end
   end, debug.traceback)
   M.active = false
+  Repeat.reading = false
   View.clear()
-  vim.api.nvim_echo({}, false, {})
   restore(snapshot)
   if vim.api.nvim_win_is_valid(source) then
     vim.api.nvim_set_current_win(source)
@@ -186,7 +211,13 @@ function M.run(opts)
     M.cancel_operator()
     return false
   end
-  return M.move(selected, opts.range), selected
+  local moved = M.move(selected, opts.range)
+  if not moved then
+    M.cancel_operator()
+    return false
+  end
+  Repeat.last[repeat_key] = { query = query, index = selected_index }
+  return true, selected
 end
 
 return M

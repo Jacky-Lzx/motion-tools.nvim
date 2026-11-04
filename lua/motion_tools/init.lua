@@ -19,6 +19,7 @@ function M.jump(opts)
   )
   require("motion_tools.search").clear()
   return require("motion_tools.session").run({
+    kind = opts.lines and "lines" or opts.treesitter and "syntax_search" or "jump",
     wins = wins,
     labels = Config.options.labels,
     pattern = opts.pattern,
@@ -56,6 +57,7 @@ function M.treesitter(opts)
     return false
   end
   return require("motion_tools.session").run({
+    kind = "syntax",
     wins = { win },
     labels = Config.options.labels,
     immediate = true,

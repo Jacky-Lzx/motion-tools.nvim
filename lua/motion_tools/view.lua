@@ -13,10 +13,39 @@ end
 
 function M.clear()
   M.windows = {}
-  if M.panel_win and vim.api.nvim_win_is_valid(M.panel_win) then
-    vim.api.nvim_win_close(M.panel_win, true)
+  for _, field in ipairs({ "panel_win", "prompt_win" }) do
+    if M[field] and vim.api.nvim_win_is_valid(M[field]) then
+      vim.api.nvim_win_close(M[field], true)
+    end
+    M[field] = nil
   end
-  M.panel_win = nil
+  vim.cmd("redraw!")
+end
+
+function M.prompt(text)
+  if not M.prompt_buf or not vim.api.nvim_buf_is_valid(M.prompt_buf) then
+    M.prompt_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[M.prompt_buf].bufhidden = "wipe"
+  end
+  vim.api.nvim_buf_set_lines(M.prompt_buf, 0, -1, false, { text })
+  local config = {
+    relative = "editor",
+    row = math.max(0, vim.o.lines - vim.o.cmdheight - 2),
+    col = 0,
+    width = math.max(1, math.min(vim.o.columns, vim.fn.strdisplaywidth(text))),
+    height = 1,
+    style = "minimal",
+    border = "none",
+    focusable = false,
+    zindex = 80,
+  }
+  if M.prompt_win and vim.api.nvim_win_is_valid(M.prompt_win) then
+    vim.api.nvim_win_set_config(M.prompt_win, config)
+  else
+    M.prompt_win = vim.api.nvim_open_win(M.prompt_buf, false, config)
+    vim.wo[M.prompt_win].wrap = false
+    vim.wo[M.prompt_win].winhighlight = "Normal:Question"
+  end
   vim.cmd("redraw!")
 end
 

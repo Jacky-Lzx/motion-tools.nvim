@@ -20,8 +20,18 @@ with tempfile.TemporaryDirectory(prefix="motion-tools-", dir="/tmp") as director
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 32, 110, 0, 0))
     env = dict(os.environ, TERM="xterm-256color", MOTION_TOOLS_TEST_DIR=directory,
                NVIM_LOG_FILE=directory + "/nvim.log")
+    env.setdefault("XDG_STATE_HOME", directory + "/state")
+    env.setdefault("XDG_CACHE_HOME", directory + "/cache")
+    init = os.environ.get("MOTION_TOOLS_NVIM_INIT")
+    if init:
+        env["NVIM_SMOKE_TEST"] = "1"
+        env["NVIM_LAZY_LOCKFILE"] = directory + "/lazy-lock.json"
+        lockfile = Path(init).parent / "lazy-lock.json"
+        if lockfile.exists():
+            shutil.copyfile(lockfile, env["NVIM_LAZY_LOCKFILE"])
     process = subprocess.Popen([os.environ.get("NVIM_BIN") or shutil.which("nvim"),
-                                "-u", "NONE", "-n", "-i", "NONE", "--noplugin",
+                                "-u", init or "NONE", "-n", "-i", "NONE",
+                                *([] if init else ["--noplugin"]),
                                 "-c", "lua dofile('tests/tui.lua')"], cwd=root, env=env,
                                stdin=slave, stdout=slave, stderr=slave)
     os.close(slave)
@@ -41,9 +51,9 @@ with tempfile.TemporaryDirectory(prefix="motion-tools-", dir="/tmp") as director
                         raise
             file = Path(directory, "stage")
             stage = file.read_text().splitlines() if file.exists() else []
-            if len(stage) == 2 and stage[0] not in handled:
+            if len(stage) >= 2 and stage[0] not in handled:
                 os.write(master, json.loads(stage[1]).encode())
-                sentinel_at = time.monotonic() + 0.06
+                sentinel_at = None if len(stage) > 2 and stage[2] == "wait" else time.monotonic() + 0.06
                 handled.add(stage[0])
         if process.poll() is None:
             process.kill()

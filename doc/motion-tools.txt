@@ -65,6 +65,9 @@ Controls:
     Ctrl-U        Clear the query.
     Escape/Ctrl-C Cancel. A pending operator is cancelled as well.
 
+The query/label prompt is a temporary non-focusable window. Typing produces no
+echo messages or notification history. It closes on success or cancellation.
+
 Views are captured before reading input and restored before the final jump.
 Cancellation preserves the cursor, Visual anchor and jumplist. Changes to source
 buffers during a prompt invalidate the selection. Every exit removes labels and
@@ -75,6 +78,13 @@ In operator-pending mode a point jump is a native character motion, exclusive
 of the target character, subject to Neovim's forced motion type. An explicit
 opts.range=true instead selects the whole matched range. Counts are not a
 second result selector for interactive jumps; choose the displayed label.
+
+After an operator, native dot-repeat reuses the last query and candidate ordinal
+in fresh distance-ordered results. It never reuses stale absolute coordinates or
+asks for new labels. Different operators and jump kinds retain separate repeat
+state, so an intervening yank or ordinary jump does not change a deletion's
+query. If that candidate no longer exists, the repeated operator is cancelled.
+This observes native redo without mapping '.' or replacing 'operatorfunc'.
 
 Return: boolean success, followed by the selected range on success. Ranges have
 win, buf, row, col, end_row and end_col fields. Rows and byte columns are zero

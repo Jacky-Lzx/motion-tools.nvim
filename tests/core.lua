@@ -36,6 +36,18 @@ check(#collect("\\(", { regex = true }) == 0, "invalid regex")
 check(#collect("", { lines = true }) == 4, "blank line target")
 local limited, warning = collect("a", { max_matches = 1 })
 check(#limited == 1 and warning ~= nil, "match cap")
+lines({ string.rep("x", 150) .. "target" })
+vim.wo.wrap = false
+check(#collect("target") == 0, "off-screen horizontal target")
+vim.api.nvim_win_set_cursor(win, { 1, 150 })
+vim.cmd("normal! ze")
+check(#collect("target") == 1, "horizontally scrolled visible target")
+vim.wo.wrap = true
+lines({ "head", "beta", "beta", "tail" })
+vim.cmd("2,3fold")
+check(#collect("beta") == 1, "closed fold hidden target")
+vim.cmd("normal! zE")
+lines({ "abc abc", "  ABC", "", "中文中文", "back\\slash" })
 local many = {}
 for i = 1, 40 do
   many[i] = {}
@@ -100,6 +112,16 @@ check(
   "replacement mapping removed"
 )
 check(vim.fn.maparg("<leader>k", "n") == "", "owned mapping leaked")
+tools.setup({ mappings = true })
+local original_leader = vim.g.mapleader
+local installed_lhs = vim.fn.maparg("<leader>k", "n", false, true).lhs
+vim.keymap.set("n", installed_lhs, existing, { buffer = buf })
+vim.g.mapleader = ","
+tools.setup({ mappings = false })
+check(vim.fn.maparg(installed_lhs, "n", false, true).callback == existing, "local override removed")
+vim.keymap.del("n", installed_lhs, { buffer = buf })
+check(vim.fn.maparg(installed_lhs, "n") == "", "shadowed global mapping leaked after leader change")
+vim.g.mapleader = original_leader
 
 vim.o.hlsearch = true
 vim.fn.setreg("/", "child")

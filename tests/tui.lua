@@ -9,6 +9,29 @@ local tools = require("motion_tools")
 local View = require("motion_tools.view")
 local Session = require("motion_tools.session")
 tools.setup({ labels = "asdf", mappings = true })
+if vim.env.MOTION_TOOLS_NVIM_INIT then
+  -- Temporary session mappings only. The user's config files are never edited.
+  for lhs, action in pairs({
+    [" f"] = tools.jump,
+    [" F"] = tools.treesitter,
+    [" j"] = tools.lines,
+    [" k"] = tools.lines,
+  }) do
+    vim.keymap.set({ "n", "x", "o" }, lhs, action)
+  end
+  for _, lhs in ipairs({ "n", "N", "*", "#", "g*", "g#" }) do
+    vim.keymap.set("n", lhs, function()
+      tools.search(lhs)
+    end)
+  end
+  vim.keymap.set("c", "<C-f>", tools.cmdline_jump, { expr = true })
+  vim.keymap.set({ "n", "x", "o" }, "]i", function()
+    tools.navigate("indent", "next", { change = "more" })
+  end)
+  vim.keymap.set("n", "]d", function()
+    tools.navigate("diagnostic", "next")
+  end)
+end
 vim.keymap.set({ "n", "x", "o" }, " m", function()
   tools.treesitter({ search = true })
 end)
@@ -50,6 +73,89 @@ end
 local function case(name, input, setup, verify)
   tests[#tests + 1] = { name = name, input = input, setup = setup, verify = verify }
 end
+local function continuation(input)
+  vim.fn.writefile(
+    { tests[index].name .. ":continue", vim.json.encode(input) },
+    directory .. "/stage"
+  )
+end
+local deferred_failure
+local function inspect_prompt(callback)
+  local function run()
+    vim.cmd("redraw!")
+    local ok, err = xpcall(callback, debug.traceback)
+    if not ok then
+      deferred_failure = err
+      continuation("\27")
+    end
+  end
+  vim.defer_fn(function()
+    if vim.env.MOTION_TOOLS_NVIM_INIT and package.loaded["notification-tools"] then
+      require("notification-tools").dismiss()
+      vim.defer_fn(run, 30)
+    else
+      run()
+    end
+  end, 120)
+end
+local function screen(win, row, col)
+  local pos = vim.fn.screenpos(win, row, col)
+  return vim.fn.screenstring(pos.row, pos.col)
+end
+case("render-per-window", " fbeta\r", function()
+  reset()
+  vim.cmd("vsplit")
+  local other = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_win(origin)
+  inspect_prompt(function()
+    check(Session.active, "prompt not active")
+    check(
+      View.prompt_win and vim.api.nvim_win_get_config(View.prompt_win).focusable == false,
+      "missing passive prompt"
+    )
+    check(
+      table
+        .concat(vim.api.nvim_buf_get_lines(View.prompt_buf, 0, -1, false))
+        :find("motion-tools label:", 1, true),
+      "prompt content missing"
+    )
+    check(screen(origin, 1, 7) == "a", "source label missing from terminal")
+    check(screen(other, 1, 7) == "d", "same-buffer labels leaked across windows")
+    position(1, 0)
+    check(
+      #vim.api.nvim_buf_get_extmarks(buf, View.ns, 0, -1, {}) == 0,
+      "jump marks are not ephemeral"
+    )
+    continuation("a")
+  end)
+end, function()
+  position(1, 6)
+end)
+tests[#tests].wait = true
+case("stale-buffer", "d fbeta\r", function()
+  reset()
+  inspect_prompt(function()
+    check(Session.active, "prompt not active")
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "external change" })
+    continuation("a")
+  end)
+end, function()
+  check(text() == "external change" and vim.fn.mode() == "n", "stale operator executed")
+end)
+tests[#tests].wait = true
+case("stale-window", "d fbeta\r", function()
+  reset()
+  inspect_prompt(function()
+    check(Session.active, "prompt not active")
+    local replacement = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_lines(replacement, 0, -1, false, { "replacement" })
+    vim.api.nvim_win_set_buf(origin, replacement)
+    continuation("a")
+  end)
+end, function()
+  check(text() == "replacement" and vim.fn.mode() == "n", "operator ran in replaced buffer")
+end)
+tests[#tests].wait = true
 case("literal", " fgam\r", reset, function()
   position(1, 11)
   check(vim.fn.getreg("/") == "previous-search", "jump changed search register")
@@ -74,6 +180,29 @@ end)
 case("operator-cancel", "d fbeta\27", reset, function()
   check(text() == "alpha beta gamma\n  beta\ntail", "cancel executed operator")
   check(vim.fn.mode() == "n", "operator not cancelled")
+end)
+case("operator-repeat", "d fgam\raj0.", function()
+  reset({ "alpha beta gamma", "alpha beta gamma", "tail" })
+  inspect_prompt(function()
+    tests[index].reasked = Session.active
+    if Session.active then
+      continuation("gam\ra")
+    else
+      continuation("")
+    end
+  end)
+end, function()
+  check(text() == "gamma\ngamma\ntail", "operator redo: " .. text())
+  check(not tests[index].reasked, "dot repeat asked for input")
+end)
+tests[#tests].wait = true
+case("repeat-after-yank", "d fgam\raj0y fbet\raj0.", function()
+  reset({ "alpha beta gamma", "alpha beta gamma", "alpha beta gamma" })
+end, function()
+  check(
+    text() == "gamma\nalpha beta gamma\ngamma",
+    "yank replaced the deletion's repeat state: " .. text()
+  )
 end)
 case("visual", "v fgam\r", reset, function()
   check(vim.fn.mode() == "v", "visual lost")
@@ -250,15 +379,23 @@ local function next_case()
   executed = executed + 1
   tests[index].setup()
   vim.cmd.redraw()
-  vim.fn.writefile(
-    { index .. ":" .. tests[index].name, vim.json.encode(tests[index].input) },
-    directory .. "/stage"
-  )
+  vim.fn.writefile({
+    index .. ":" .. tests[index].name,
+    vim.json.encode(tests[index].input),
+    tests[index].wait and "wait" or "done",
+  }, directory .. "/stage")
 end
 vim.keymap.set({ "n", "x" }, "<F12>", function()
   vim.schedule(function()
     local ok, err = xpcall(function()
-      check(not Session.active and next(View.windows) == nil, "jump state leaked")
+      check(
+        not Session.active
+          and next(View.windows) == nil
+          and not View.prompt_win
+          and not View.panel_win,
+        "jump state leaked"
+      )
+      check(deferred_failure == nil, deferred_failure)
       tests[index].verify()
       next_case()
     end, debug.traceback)

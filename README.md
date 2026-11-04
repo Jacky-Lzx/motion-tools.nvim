@@ -48,6 +48,8 @@ Normal jumps can cross ordinary windows in the current tab. Visual and operator
 jumps stay in the source window. Successful jumps enter the jumplist; cancellation
 restores views without changing text or search history. Ordinary jumps leave `/`
 untouched. Command-line label jumps commit the search only after selection.
+Operator `.` repeats the prior query and candidate ordinal without reopening the
+prompt. It resolves fresh matches at the new cursor location.
 
 ## API
 
@@ -86,3 +88,5 @@ Run `sh tests/run.sh` (Neovim, Python 3, StyLua). Set
 `MOTION_TOOLS_PARSER_DIR` to a runtime directory containing `parser/lua.so` to
 include real Tree-sitter tests. The suite exercises actual PTY input for jumps,
 operators, registers, Visual modes, Unicode, windows, search and cancellation.
+`MOTION_TOOLS_NVIM_INIT=/path/to/init.lua python3 tests/tui.py` runs the same
+workflows in a configured session with temporary mappings and isolated test state.
