@@ -1,0 +1,99 @@
+local M = { ns = vim.api.nvim_create_namespace("motion_tools"), windows = {} }
+
+function M.highlights()
+  for name, link in pairs({
+    Match = "Search",
+    Label = "IncSearch",
+    Current = "CurSearch",
+    Lens = "Comment",
+  }) do
+    vim.api.nvim_set_hl(0, "MotionTools" .. name, { default = true, link = link })
+  end
+end
+
+function M.clear()
+  M.windows = {}
+  if M.panel_win and vim.api.nvim_win_is_valid(M.panel_win) then
+    vim.api.nvim_win_close(M.panel_win, true)
+  end
+  M.panel_win = nil
+  vim.cmd("redraw!")
+end
+
+function M.panel(matches, prefix)
+  local lines = {}
+  for _, match in ipairs(matches) do
+    if match.label:sub(1, #prefix) == prefix then
+      lines[#lines + 1] = ("%s  %s  %d:%d–%d:%d"):format(
+        match.label:sub(#prefix + 1),
+        match.kind or "node",
+        match.row + 1,
+        match.col + 1,
+        match.end_row + 1,
+        match.end_col
+      )
+    end
+  end
+  if not M.panel_buf or not vim.api.nvim_buf_is_valid(M.panel_buf) then
+    M.panel_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[M.panel_buf].bufhidden = "wipe"
+  end
+  vim.api.nvim_buf_set_lines(M.panel_buf, 0, -1, false, lines)
+  if not M.panel_win or not vim.api.nvim_win_is_valid(M.panel_win) then
+    local width = 1
+    for _, line in ipairs(lines) do
+      width = math.max(width, vim.fn.strdisplaywidth(line))
+    end
+    M.panel_win = vim.api.nvim_open_win(M.panel_buf, false, {
+      relative = "editor",
+      row = 1,
+      col = math.max(0, vim.o.columns - width - 4),
+      width = math.max(1, math.min(width, vim.o.columns - 4)),
+      height = math.max(1, math.min(#lines, vim.o.lines - 6)),
+      style = "minimal",
+      border = "rounded",
+      focusable = false,
+      zindex = 70,
+    })
+    vim.wo[M.panel_win].wrap = false
+  end
+end
+
+function M.show(matches, prefix, labels)
+  M.windows = {}
+  for _, match in ipairs(matches) do
+    if not labels or match.label:sub(1, #prefix) == prefix then
+      local rows = M.windows[match.win] or {}
+      M.windows[match.win] = rows
+      local marks = rows[match.row] or {}
+      rows[match.row] = marks
+      marks[#marks + 1] = { match = match, label = labels and match.label:sub(#prefix + 1) or nil }
+    end
+  end
+  vim.cmd("redraw!")
+end
+
+M.highlights()
+vim.api.nvim_set_decoration_provider(M.ns, {
+  on_win = function(_, win)
+    return M.windows[win] ~= nil
+  end,
+  on_line = function(_, win, buf, row)
+    for _, item in ipairs((M.windows[win] or {})[row] or {}) do
+      local match = item.match
+      local opts = { ephemeral = true, priority = 200 }
+      if match.end_row > row or match.end_col > match.col then
+        opts.end_row, opts.end_col = match.end_row, match.end_col
+        opts.hl_group = "MotionToolsMatch"
+      end
+      if item.label and item.label ~= "" then
+        opts.virt_text = { { item.label, "MotionToolsLabel" } }
+        opts.virt_text_pos = "overlay"
+        opts.hl_mode = "combine"
+      end
+      vim.api.nvim_buf_set_extmark(buf, M.ns, row, match.col, opts)
+    end
+  end,
+})
+
+return M

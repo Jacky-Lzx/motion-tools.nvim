@@ -1,0 +1,205 @@
+*motion-tools.txt*    Search and navigate the current editing scene
+
+=============================================================================
+CONTENTS                                                     *motion-tools*
+
+    Setup                         |motion-tools-setup|
+    Interactive jumps             |motion-tools-jump|
+    Syntax selections             |motion-tools-treesitter|
+    Search feedback               |motion-tools-search|
+    Navigation                    |motion-tools-navigate|
+    Options                       |motion-tools-options|
+    Commands and highlights       |motion-tools-commands|
+
+Requires Neovim 0.11+. No external Lua plugins are required. Tree-sitter features
+require a parser installed on 'runtimepath' for the current 'filetype'.
+
+=============================================================================
+SETUP                                                   *motion-tools-setup*
+>
+    require('motion_tools').setup({ mappings = false })
+<
+Setup enables search feedback. Mappings are opt-in. Calling setup again replaces
+configuration and recreates owned autocmds. An invalid configuration is rejected
+before the active configuration is changed.
+
+With mappings=true, the bindings in README are installed when the exact key has
+no existing mapping in the current buffer or globally. Neovim's built-in Lua
+mappings are preserved too. Disabling/reconfiguring mappings removes only keys
+whose callback still belongs to motion-tools; later user replacements survive.
+For precise ownership, keep mappings=false and use |vim.keymap.set()|.
+
+=============================================================================
+INTERACTIVE JUMPS                                         *motion-tools-jump*
+>
+    require('motion_tools').jump(opts)
+    require('motion_tools').lines(opts)
+<
+jump() searches displayed buffer lines. With no initial pattern, type literal
+text, press Enter/Tab, then enter a displayed label. With one candidate, Enter
+or Tab jumps directly. Ordinary query case follows 'ignorecase' and 'smartcase'.
+Typing never modifies text or the search register.
+
+An explicit opts.pattern immediately starts label selection. opts.regex=true
+uses a Vim regular expression instead of literal text. Interactive queries may
+also use regex=true. Patterns are matched within each line; multiline regex
+matches and positional buffer atoms are outside this label matcher. Native /
+and ? searches retain Neovim's full search syntax and behavior.
+
+lines() immediately labels the first non-whitespace character of nonblank lines.
+Closed folds expose only their header. Normal mode can include ordinary windows
+in the current tab; floating windows and other tabs are excluded. Set
+opts.multi_window=false to restrict the operation to the current window.
+Visual and operator-pending modes always use the source window, because a
+single selection cannot span buffers. Remote operator replay is not provided.
+
+Labels are unique equal-length sequences from the configured alphabet. Matches
+in the source window are preferred, ordered by line distance then byte distance
+from the cursor; other windows follow. max_matches bounds collected results;
+the prompt announces the cap when reached.
+
+Controls:
+    Enter/Tab     Switch from query input to labels (jump if unique).
+    Backspace     Delete a Unicode query character or label character.
+                  In label mode with no prefix, return to an interactive query.
+    Ctrl-U        Clear the query.
+    Escape/Ctrl-C Cancel. A pending operator is cancelled as well.
+
+Views are captured before reading input and restored before the final jump.
+Cancellation preserves the cursor, Visual anchor and jumplist. Changes to source
+buffers during a prompt invalidate the selection. Every exit removes labels and
+the prompt, including parser/input errors. Successful jumps record the source
+in the jumplist and open folds at the destination.
+
+In operator-pending mode a point jump is a native character motion, exclusive
+of the target character, subject to Neovim's forced motion type. An explicit
+opts.range=true instead selects the whole matched range. Counts are not a
+second result selector for interactive jumps; choose the displayed label.
+
+Return: boolean success, followed by the selected range on success. Ranges have
+win, buf, row, col, end_row and end_col fields. Rows and byte columns are zero
+based and the end is exclusive. These are immediate results, not tracked marks.
+
+=============================================================================
+SYNTAX SELECTIONS                                   *motion-tools-treesitter*
+>
+    require('motion_tools').treesitter()
+    require('motion_tools').treesitter({ search = true })
+<
+treesitter() lists named syntax nodes containing the cursor, smallest first,
+including parents and the root. It includes injected language trees, deduplicates
+identical ranges and shows node types/ranges in a non-focusable chooser. Type a
+label to select the corresponding range (linewise for complete lines,
+characterwise otherwise). Operators act on that
+whole range; Normal mode enters Visual mode; existing Visual selections are
+replaced. 'selection'=exclusive and UTF-8 endpoints are supported.
+
+search=true searches visible text interactively, then selects the smallest named
+node at a chosen match. It stays in the source window. Missing parsers produce
+an informational message and cancel a pending operator without editing text.
+
+These operations provide syntax ranges, not semantic textobjects such as a
+function body excluding delimiters. They do not require Tree-sitter queries.
+
+=============================================================================
+SEARCH FEEDBACK                                         *motion-tools-search*
+>
+    require('motion_tools').search('n')
+    require('motion_tools').lens()
+<
+search() accepts n, N, *, #, g* and g#. It executes the original command with
+|v:count1| via :normal!, then refreshes the lens. n/N optionally center the view.
+Search direction, wrapping, word boundaries and the / register are native.
+
+The lens shows [current/total] at the cursor line. Counts come from |searchcount()|
+with a time and count budget; '+' indicates a capped count, and an ellipsis
+indicates a timeout. Setup refreshes feedback after cursor/window changes and
+native / or ? command-line input, even with mappings=false. Invalid/incomplete
+patterns and empty results clear the lens. Insert mode and :nohlsearch clear it.
+
+Command-line labels:
+>
+    vim.keymap.set('c', '<C-f>', require('motion_tools').cmdline_jump,
+      { expr = true })
+<
+Within / or ?, Ctrl-F exits the command line and opens labels using that pattern.
+It uses the previous pattern when the command line is empty. Selecting a label
+commits the pattern, search history, direction and highlighting. Cancellation
+keeps the prior search register/history and source view. Outside search command
+lines the function returns the native Ctrl-F key (command-line window).
+
+Search counters are a lightweight addition to native highlighting. Jump labels
+use their own ranges; they never take over native n/N search execution.
+
+=============================================================================
+NAVIGATION                                            *motion-tools-navigate*
+>
+    require('motion_tools').navigate(target, direction, opts)
+<
+direction: next (default), prev, first, last.
+opts.count: positive integer, defaults to v:count1.
+opts.wrap: boolean, defaults to true for ordered lists.
+
+Targets:
+    buffer      Listed buffers in buffer-number order.
+    diagnostic  Current buffer diagnostics by position. opts.severity is passed
+                to vim.diagnostic.get(). Duplicate positions are visited once.
+    quickfix    Valid entries in the active quickfix list, preserving list idx.
+    location    Valid entries in the current window's location list.
+    jump        Native Ctrl-O/Ctrl-I history; no wrapping. first/last seek the
+                oldest/newest edge. Native jump commands determine validity.
+    indent      Nonblank lines at a different indentation depth. opts.change
+                may be 'more' or 'less'. Each counted step compares with the
+                previous step's depth. No wrapping; first/last seek an edge.
+    treesitter  Starts (prev) or inclusive ends (next) of the current syntax
+                node and its ancestors. No wrapping; first/last seek an edge.
+
+For ordered lists, first/last plus a count selects the Nth item from that edge.
+For node boundaries and indentation first/last seek the furthest ancestor/depth
+in that direction. buffer, quickfix, location and jump mappings use Normal mode;
+diagnostic, indent and treesitter also support Visual and pending operators.
+Empty targets are safe no-ops and cancel a pending operator. Native buffer/list
+commands retain modified-buffer protection and report their usual errors.
+
+=============================================================================
+OPTIONS                                                *motion-tools-options*
+>
+    require('motion_tools').setup({
+      labels = 'asdfghjklqwertyuiopzxcvbnm',
+      multi_window = true,
+      max_matches = 1000,
+      mappings = false,
+      search = {
+        enabled = true,
+        timeout = 100,
+        max_count = 9999,
+        center = true,
+      },
+    })
+<
+labels must contain at least two distinct ASCII letters. max_matches must be a
+positive integer. search.timeout is searchcount's millisecond budget, max_count
+its result cap, and center controls zz after the search() n/N wrappers.
+Set search.enabled=false to disable all automatic lens updates.
+
+=============================================================================
+COMMANDS AND HIGHLIGHTS                                *motion-tools-commands*
+
+                                                *:MotionTools*
+:MotionTools [jump|lines|treesitter|treesitter_search|lens]
+:MotionTools navigate {target} [next|prev|first|last]
+
+Commands are convenience entries. Map Lua functions directly for Visual and
+operator use, so mode, count and register survive the call.
+
+Highlight groups (default links, preserved across colorscheme changes):
+    MotionToolsMatch    Search
+    MotionToolsLabel    IncSearch
+    MotionToolsCurrent  CurSearch
+    MotionToolsLens     Comment
+
+Window-specific jump decorations are ephemeral: two views of the same buffer
+can show different labels without leaking marks to each other. The syntax
+chooser is a scratch float and closes on every completion/cancellation path.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
