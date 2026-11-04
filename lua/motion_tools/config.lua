@@ -2,6 +2,7 @@ local M = {}
 
 M.defaults = {
   labels = "asdfghjklqwertyuiopzxcvbnm",
+  live_labels = true,
   multi_window = true,
   max_matches = 1000,
   search = { enabled = true, timeout = 100, max_count = 9999, center = true },
@@ -22,7 +23,7 @@ function M.resolve(opts)
     assert(char:match("%a") and not seen[char], "motion-tools: labels must be unique ASCII letters")
     seen[char] = true
   end
-  for _, field in ipairs({ "multi_window", "mappings" }) do
+  for _, field in ipairs({ "live_labels", "multi_window", "mappings" }) do
     assert(type(config[field]) == "boolean", "motion-tools: " .. field .. " must be boolean")
   end
   assert(

@@ -22,7 +22,7 @@ Reconfiguration removes only bindings still owned by this plugin.
 
 | Binding | Modes | Action |
 | --- | --- | --- |
-| `<leader>f` | Normal, Visual, operator | Type a literal query, Enter/Tab, then a label |
+| `<leader>f` | Normal, Visual, operator | Type a literal query, then a displayed jump label |
 | `<leader>F` | Normal, Visual, operator | Choose an ancestor syntax node |
 | `<leader>j`, `<leader>k` | Normal, Visual, operator | Label nonblank line starts |
 | `<C-f>` in `/` or `?` | Command line | Choose a label for the current search pattern |
@@ -39,10 +39,19 @@ and bracket navigation. Indentation and syntax boundaries stop at their edges.
 Neovim's own mappings also count as existing mappings; bind the API explicitly
 when you want to replace them.
 
-During a jump, Backspace edits the query or label prefix; from label mode it
-returns to the query. Ctrl-U clears the query. Escape/Ctrl-C cancels. A unique
-query match jumps immediately on Enter/Tab. Labels have equal length, expanding
-to two or more letters for larger result sets.
+During literal search, single-letter jump labels appear after matches as you
+type. Press a displayed label to jump directly, or keep typing to narrow the
+search. Letters that could continue the query are excluded from live labels,
+respecting search case options. Surviving matches keep their labels when possible.
+If there are too few safe letters, nearby targets receive labels first; continue
+typing or press Enter/Tab to label all collected targets.
+
+Enter/Tab switches to full label selection, or jumps directly for a unique match.
+Full labels have equal length, expanding to two or more letters for larger result
+sets. Backspace edits the query or label prefix; from full label mode it returns
+to the query. Ctrl-U clears the query. Escape/Ctrl-C cancels.
+Set `live_labels = false` to use only the Enter/Tab workflow. Regex and syntax
+searches use that workflow regardless of this option.
 
 Line jumps (`<leader>j` / `<leader>k`) use the configured letters followed by
 their missing opposite-case counterparts. The default alphabet provides 52
@@ -61,6 +70,7 @@ prompt. It resolves fresh matches at the new cursor location.
 local motion = require("motion_tools")
 motion.setup({
   labels = "asdfghjklqwertyuiopzxcvbnm",
+  live_labels = true,
   multi_window = true,
   max_matches = 1000,
   mappings = false,

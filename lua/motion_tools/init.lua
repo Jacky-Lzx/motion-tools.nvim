@@ -27,11 +27,20 @@ function M.jump(opts)
       end
     end
   end
+  local live_labels = opts.live_labels
+  if live_labels == nil then
+    live_labels = Config.options.live_labels
+  end
   require("motion_tools.search").clear()
   return require("motion_tools.session").run({
     kind = opts.lines and "lines" or opts.treesitter and "syntax_search" or "jump",
     wins = wins,
     labels = labels,
+    live_labels = live_labels
+      and opts.pattern == nil
+      and not opts.regex
+      and not opts.lines
+      and not opts.treesitter,
     pattern = opts.pattern,
     immediate = opts.pattern ~= nil,
     range = opts.range,

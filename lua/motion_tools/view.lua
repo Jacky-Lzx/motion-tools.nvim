@@ -88,7 +88,7 @@ function M.panel(matches, prefix)
   end
 end
 
-function M.show(matches, prefix, labels)
+function M.show(matches, prefix, labels, live)
   M.windows = {}
   for _, match in ipairs(matches) do
     if not labels or match.label:sub(1, #prefix) == prefix then
@@ -96,7 +96,11 @@ function M.show(matches, prefix, labels)
       M.windows[match.win] = rows
       local marks = rows[match.row] or {}
       rows[match.row] = marks
-      marks[#marks + 1] = { match = match, label = labels and match.label:sub(#prefix + 1) or nil }
+      marks[#marks + 1] = {
+        match = match,
+        label = live and match.live_label or labels and match.label:sub(#prefix + 1) or nil,
+        after = live,
+      }
     end
   end
   vim.cmd("redraw!")
@@ -116,9 +120,19 @@ vim.api.nvim_set_decoration_provider(M.ns, {
         opts.hl_group = "MotionToolsMatch"
       end
       if item.label and item.label ~= "" then
-        opts.virt_text = { { item.label, "MotionToolsLabel" } }
-        opts.virt_text_pos = "overlay"
-        opts.hl_mode = "combine"
+        if item.after then
+          vim.api.nvim_buf_set_extmark(buf, M.ns, match.end_row, match.end_col, {
+            ephemeral = true,
+            priority = 201,
+            virt_text = { { item.label, "MotionToolsLabel" } },
+            virt_text_pos = "overlay",
+            hl_mode = "combine",
+          })
+        else
+          opts.virt_text = { { item.label, "MotionToolsLabel" } }
+          opts.virt_text_pos = "overlay"
+          opts.hl_mode = "combine"
+        end
       end
       vim.api.nvim_buf_set_extmark(buf, M.ns, row, match.col, opts)
     end

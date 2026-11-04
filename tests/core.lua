@@ -21,6 +21,7 @@ check(vim.fn.maparg("<leader>f", "n") == "", "default setup binds keys")
 check(not pcall(tools.setup, { labels = "aaa" }), "duplicate labels accepted")
 check(not pcall(tools.setup, { max_matches = 0 }), "zero match limit accepted")
 check(not pcall(tools.setup, { search = { enabled = 2 } }), "invalid search config accepted")
+check(not pcall(tools.setup, { live_labels = 2 }), "invalid live label config accepted")
 lines({ "abc abc", "  ABC", "", "中文中文", "back\\slash" })
 vim.o.ignorecase, vim.o.smartcase = true, true
 check(#collect("abc") == 3, "ignorecase")
@@ -63,6 +64,53 @@ check(
   vim.deep_equal(Match.end_pos(Match.range(win, 0, 0, 1, 0)), { 1, 7 }),
   "multiline end at column zero"
 )
+
+lines({ "beta bell", "aaas", "中文a中文S", "b\\s" })
+local blocked = Match.continuations({ win }, "be")
+check(blocked.t and blocked.l and not blocked.a, "literal continuations")
+blocked = Match.continuations({ win }, "aa")
+check(blocked.a and blocked.s, "overlapping continuations")
+blocked = Match.continuations({ win }, "中文")
+check(blocked.a and blocked.A and blocked.s and blocked.S, "UTF-8 and case continuations")
+check(Match.continuations({ win }, "b\\").s, "literal backslash continuation")
+lines({ "beta beS BEd" })
+vim.o.ignorecase = false
+blocked = Match.continuations({ win }, "be")
+check(blocked.t and blocked.S and not blocked.s and not blocked.d, "case-sensitive continuations")
+vim.o.ignorecase = true
+blocked = Match.continuations({ win }, "be")
+check(blocked.t and blocked.T and blocked.s and blocked.S and blocked.d, "ignorecase continuations")
+blocked = Match.continuations({ win }, "BE")
+check(blocked.d and not blocked.D and not blocked.t, "smartcase continuations")
+lines({ "be bea" })
+check(#collect("be", { max_matches = 1 }) == 1, "live label capped fixture")
+check(Match.continuations({ win }, "be").a, "continuation beyond match cap")
+lines({ "be", "bea", "head" })
+vim.cmd("1,2fold")
+check(not Match.continuations({ win }, "be").a, "hidden fold continuation")
+vim.cmd("normal! zE")
+lines({ "beta bell" })
+local before = collect("be")
+local reused = Match.live_labels(before, "asdf", Match.continuations({ win }, "be"))
+local survivor = collect("bel")
+Match.live_labels(survivor, "asdf", Match.continuations({ win }, "bel"), reused)
+check(survivor[1].live_label == before[2].live_label, "surviving label changed")
+Match.live_labels(before, "asdf", { a = true, s = true, d = true, f = true }, reused)
+check(not before[1].live_label and not before[2].live_label, "unsafe labels survived")
+lines({ "beta bell beA BEs", "aaas", "中a中S", "b\\a b\\S" })
+for _, options in ipairs({ { false, false }, { true, false }, { true, true } }) do
+  vim.o.ignorecase, vim.o.smartcase = unpack(options)
+  for _, query in ipairs({ "b", "be", "BE", "aa", "中", "b\\" }) do
+    local matches = collect(query)
+    Match.live_labels(matches, "asdfASDF", Match.continuations({ win }, query, "asdfASDF"))
+    for _, match in ipairs(matches) do
+      if match.live_label then
+        check(#collect(query .. match.live_label) == 0, "live label shadows a query continuation")
+      end
+    end
+  end
+end
+vim.o.ignorecase, vim.o.smartcase = true, true
 
 local keys = { 1, 3, 6 }
 check(Nav.index(keys, 3, "next", 2, true) == 1, "count wrapping")

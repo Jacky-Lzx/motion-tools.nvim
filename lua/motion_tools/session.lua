@@ -101,6 +101,7 @@ function M.run(opts)
   end
   local query, prefix, phase = opts.pattern or "", "", opts.immediate and "labels" or "query"
   local selected, selected_index
+  local live_labels = {}
   local ok, err = xpcall(function()
     local matches, warning
     local dirty = true
@@ -111,6 +112,14 @@ function M.run(opts)
       if dirty then
         matches, warning = opts.collect(query)
         Match.labels(matches, opts.labels)
+        if opts.live_labels then
+          live_labels = Match.live_labels(
+            matches,
+            opts.labels,
+            Match.continuations(opts.wins, query, opts.labels),
+            live_labels
+          )
+        end
         dirty = false
       end
       if opts.panel then
@@ -123,7 +132,7 @@ function M.run(opts)
         end
         View.show(preview, "", false)
       else
-        View.show(matches, prefix, phase == "labels")
+        View.show(matches, prefix, phase == "labels", phase == "query" and opts.live_labels)
       end
       if opts.panel then
         View.panel(matches, prefix)
@@ -172,6 +181,17 @@ function M.run(opts)
         elseif char == key("<C-u>") then
           query, dirty = "", true
         elseif vim.fn.strchars(char) == 1 and vim.fn.char2nr(char) >= 32 then
+          if opts.live_labels then
+            for index, match in ipairs(matches) do
+              if match.live_label == char then
+                selected, selected_index = match, index
+                break
+              end
+            end
+            if selected then
+              break
+            end
+          end
           query, dirty = query .. char, true
         end
       else

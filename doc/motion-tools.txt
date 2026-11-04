@@ -36,15 +36,26 @@ INTERACTIVE JUMPS                                         *motion-tools-jump*
     require('motion_tools').lines(opts)
 <
 jump() searches displayed buffer lines. With no initial pattern, type literal
-text, press Enter/Tab, then enter a displayed label. With one candidate, Enter
-or Tab jumps directly. Ordinary query case follows 'ignorecase' and 'smartcase'.
-Typing never modifies text or the search register.
+text and single-letter labels appear after matching text. Type a displayed label
+to jump immediately, or continue typing the query. Labels exclude letters that
+could extend the query anywhere in participating windows, including occurrences
+beyond max_matches. This follows 'ignorecase' and 'smartcase'; case-insensitive
+queries conservatively exclude both cases of continuation letters.
+
+Surviving matches keep their live labels when possible. If there are fewer safe
+letters than matches, nearby targets get labels first. Continue typing to narrow
+the search, or press Enter/Tab to show full labels for all collected targets.
+With one candidate, Enter or Tab jumps directly. Full labels may differ from live
+labels and appear at match starts. Set live_labels=false in setup or jump(opts)
+to require Enter/Tab before label selection. Typing never modifies text or the
+search register; a unique match does not jump automatically while typing.
 
 An explicit opts.pattern immediately starts label selection. opts.regex=true
 uses a Vim regular expression instead of literal text. Interactive queries may
-also use regex=true. Patterns are matched within each line; multiline regex
-matches and positional buffer atoms are outside this label matcher. Native /
-and ? searches retain Neovim's full search syntax and behavior.
+also use regex=true. Regex and syntax searches require Enter/Tab before label
+selection and do not use live labels. Patterns are matched within each line;
+multiline regex matches and positional buffer atoms are outside this label
+matcher. Native / and ? searches retain Neovim's full search syntax and behavior.
 
 lines() immediately labels the first non-whitespace character of nonblank lines.
 Its alphabet keeps the configured letters in order, then appends any missing
@@ -57,10 +68,10 @@ opts.multi_window=false to restrict the operation to the current window.
 Visual and operator-pending modes always use the source window, because a
 single selection cannot span buffers. Remote operator replay is not provided.
 
-Labels are unique equal-length sequences from the configured alphabet. Matches
-in the source window are preferred, ordered by line distance then byte distance
-from the cursor; other windows follow. max_matches bounds collected results;
-the prompt announces the cap when reached.
+Full labels are unique equal-length sequences from the configured alphabet.
+Matches in the source window are preferred, ordered by line distance then byte
+distance from the cursor; other windows follow. max_matches bounds collected
+results; the prompt announces the cap when reached.
 
 Controls:
     Enter/Tab     Switch from query input to labels (jump if unique).
@@ -180,6 +191,7 @@ OPTIONS                                                *motion-tools-options*
 >
     require('motion_tools').setup({
       labels = 'asdfghjklqwertyuiopzxcvbnm',
+      live_labels = true,
       multi_window = true,
       max_matches = 1000,
       mappings = false,
@@ -191,9 +203,11 @@ OPTIONS                                                *motion-tools-options*
       },
     })
 <
-labels must contain at least two distinct ASCII letters. max_matches must be a
-positive integer. search.timeout is searchcount's millisecond budget, max_count
-its result cap, and center controls zz after the search() n/N wrappers.
+labels must contain at least two distinct ASCII letters. live_labels is a boolean
+enabling direct label selection while typing literal queries (default true).
+max_matches must be a positive integer. search.timeout is searchcount's
+millisecond budget, max_count its result cap, and center controls zz after the
+search() n/N wrappers.
 Set search.enabled=false to disable all automatic lens updates.
 
 =============================================================================

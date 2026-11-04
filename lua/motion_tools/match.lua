@@ -144,6 +144,89 @@ function M.labels(matches, alphabet)
   return matches
 end
 
+-- Scan every visible line, independently of the collected-result cap. Include
+-- overlapping occurrences: extending "aa" in "aaas" must keep both a and s free.
+function M.continuations(wins, query, alphabet)
+  local blocked = {}
+  if query == "" then
+    return blocked
+  end
+  local pattern = M.pattern(query, false)
+  local insensitive = vim.o.ignorecase and not (vim.o.smartcase and query:find("%u"))
+  local remaining = alphabet or "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  for _, win in ipairs(wins) do
+    if remaining == "" then
+      break
+    end
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_call(win, function()
+        local first, last = vim.fn.line("w0"), vim.fn.line("w$")
+        local lines = vim.api.nvim_buf_get_lines(0, first - 1, last, false)
+        for index, line in ipairs(lines) do
+          if remaining == "" then
+            break
+          end
+          local row = first + index - 1
+          local closed = vim.fn.foldclosed(row)
+          if closed == -1 or closed == row then
+            -- Each successful scan removes a letter from consideration. Even a
+            -- very repetitive line needs at most one scan per label letter.
+            while remaining ~= "" do
+              local char = vim.fn.matchstr(line, pattern .. "\\m\\zs[" .. remaining .. "]")
+              if char == "" then
+                break
+              end
+              blocked[char] = true
+              if insensitive then
+                -- Conservatively exclude both cases, including smartcase
+                -- changes caused by appending an uppercase label.
+                blocked[char:lower()], blocked[char:upper()] = true, true
+              end
+              remaining = remaining:gsub(".", function(candidate)
+                return blocked[candidate] and "" or candidate
+              end)
+            end
+          end
+        end
+      end)
+    end
+  end
+  return blocked
+end
+
+function M.live_labels(matches, alphabet, blocked, previous)
+  previous = previous or {}
+  local available, identities = {}, {}
+  for char in alphabet:gmatch(".") do
+    available[char] = not blocked[char]
+  end
+  -- Reserve surviving labels before assigning any new ones.
+  for index, match in ipairs(matches) do
+    match.live_label = nil
+    local pos = vim.fn.screenpos(match.win, match.end_row + 1, match.end_col + 1)
+    if pos.row > 0 and pos.col > 0 then
+      local id = table.concat({ match.win, match.buf, match.row, match.col }, ":")
+      identities[index] = id
+      local label = previous[id]
+      if available[label] then
+        match.live_label, available[label] = label, false
+      end
+    end
+  end
+  for index, match in ipairs(matches) do
+    if identities[index] and not match.live_label then
+      for char in alphabet:gmatch(".") do
+        if available[char] then
+          match.live_label, available[char] = char, false
+          previous[identities[index]] = char
+          break
+        end
+      end
+    end
+  end
+  return previous
+end
+
 function M.end_pos(match)
   local row, col = match.end_row, match.end_col
   if col == 0 and row > match.row then
