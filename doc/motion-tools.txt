@@ -220,11 +220,15 @@ COMMANDS AND HIGHLIGHTS                                *motion-tools-commands*
 Commands are convenience entries. Map Lua functions directly for Visual and
 operator use, so mode, count and register survive the call.
 
-Highlight groups (default links, preserved across colorscheme changes):
+Highlight groups (defaults restored after colorscheme changes):
     MotionToolsMatch    Search
-    MotionToolsLabel    IncSearch
+    MotionToolsLabel    Bold dark text on a bright pink background
     MotionToolsCurrent  CurSearch
     MotionToolsLens     Comment
+
+Label colors replace underlying syntax colors so jump keys remain distinct from
+matches. Override MotionToolsLabel with |nvim_set_hl()| to customize its colors;
+setup preserves existing user definitions.
 
 Window-specific jump decorations are ephemeral: two views of the same buffer
 can show different labels without leaking marks to each other. The syntax

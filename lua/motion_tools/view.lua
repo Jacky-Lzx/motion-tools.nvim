@@ -3,12 +3,19 @@ local M = { ns = vim.api.nvim_create_namespace("motion_tools"), windows = {} }
 function M.highlights()
   for name, link in pairs({
     Match = "Search",
-    Label = "IncSearch",
     Current = "CurSearch",
     Lens = "Comment",
   }) do
     vim.api.nvim_set_hl(0, "MotionTools" .. name, { default = true, link = link })
   end
+  vim.api.nvim_set_hl(0, "MotionToolsLabel", {
+    default = true,
+    fg = "#1f2335",
+    bg = "#ff79c6",
+    bold = true,
+    ctermfg = 235,
+    ctermbg = 212,
+  })
 end
 
 function M.clear()
@@ -126,12 +133,12 @@ vim.api.nvim_set_decoration_provider(M.ns, {
             priority = 201,
             virt_text = { { item.label, "MotionToolsLabel" } },
             virt_text_pos = "overlay",
-            hl_mode = "combine",
+            hl_mode = "replace",
           })
         else
           opts.virt_text = { { item.label, "MotionToolsLabel" } }
           opts.virt_text_pos = "overlay"
-          opts.hl_mode = "combine"
+          opts.hl_mode = "replace"
         end
       end
       vim.api.nvim_buf_set_extmark(buf, M.ns, row, match.col, opts)
