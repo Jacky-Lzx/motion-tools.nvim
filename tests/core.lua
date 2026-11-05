@@ -171,20 +171,31 @@ vim.keymap.del("n", installed_lhs, { buffer = buf })
 check(vim.fn.maparg(installed_lhs, "n") == "", "shadowed global mapping leaked after leader change")
 vim.g.mapleader = original_leader
 
+lines({ "no result", "prefix child gap child suffix", "another empty row" })
 vim.o.hlsearch = true
 vim.fn.setreg("/", "child")
 vim.v.hlsearch = 1
-tools.lens()
-check(
-  #vim.api.nvim_buf_get_extmarks(buf, require("motion_tools.search").ns, 0, -1, {}) == 1,
-  "lens missing"
-)
+local function lens_at(row, col, expected, message)
+  vim.api.nvim_win_set_cursor(win, { row, col })
+  tools.lens()
+  check(
+    #vim.api.nvim_buf_get_extmarks(buf, require("motion_tools.search").ns, 0, -1, {}) == expected,
+    message
+  )
+end
+lens_at(1, 0, 0, "lens appeared before first match")
+lens_at(2, 7, 1, "lens missing on match start")
+lens_at(2, 9, 1, "lens missing inside match")
+lens_at(2, 13, 0, "lens appeared between matches on matching line")
+lens_at(2, 17, 1, "lens missing on second match")
+lens_at(3, 0, 0, "lens followed cursor to nonmatching line")
 vim.v.hlsearch = 0
-tools.lens()
-check(
-  #vim.api.nvim_buf_get_extmarks(buf, require("motion_tools.search").ns, 0, -1, {}) == 0,
-  "nohlsearch lens leaked"
-)
+lens_at(2, 7, 0, "nohlsearch lens leaked")
+vim.v.hlsearch = 1
+vim.fn.setreg("/", "missing")
+lens_at(2, 7, 0, "lens appeared for missing pattern")
+vim.fn.setreg("/", "\\(")
+lens_at(2, 7, 0, "lens appeared for invalid pattern")
 vim.bo.filetype = "motion_no_parser"
 check(#require("motion_tools.treesitter").ancestors(win) == 0, "missing parser")
 

@@ -168,7 +168,7 @@ local ok, err = xpcall(function()
       ]],
         { kind == "?" }
       )
-      assert(marks() == 1, "initial counter missing")
+      assert(marks() == 0, "counter appeared on initial nonmatching line")
       input(kind .. "norm")
       watching, checked, bad = true, 0, {}
       for _, keys in ipairs({
@@ -193,13 +193,15 @@ local ok, err = xpcall(function()
       input(ending)
       assert(lua("return vim.api.nvim_get_mode().mode") == "n")
       assert(lua("return vim.fn.getreg('/')") == (ending == "<CR>" and "normalized" or "normal"))
-      assert(marks() == 1, "counter did not recover after " .. ending)
-      assert(
-        lua(
-          [[return vim.api.nvim_buf_get_extmarks(source_buf,
+      assert(marks() == (ending == "<CR>" and 1 or 0), "wrong counter after " .. ending)
+      if ending == "<CR>" then
+        assert(
+          lua(
+            [[return vim.api.nvim_buf_get_extmarks(source_buf,
         require('motion_tools.search').ns,0,-1,{details=true})[1][4].virt_text[1][1]:find('/2',1,true)~=nil]]
+          )
         )
-      )
+      end
       print(
         "search UI: "
           .. kind
@@ -211,6 +213,28 @@ local ok, err = xpcall(function()
       )
     end
   end
+  local function counter_text()
+    request("nvim_command", { "redraw" })
+    local text = {}
+    for row = 0, 29 do
+      for col = 0, 119 do
+        text[#text + 1] = cells[1][row] and cells[1][row][col] and cells[1][row][col].text or " "
+      end
+      text[#text + 1] = "\n"
+    end
+    return table.concat(text)
+  end
+  input("/normalized<CR>")
+  assert(marks() == 1 and counter_text():find("[1/2]", 1, true), "match counter not rendered")
+  input("j")
+  assert(marks() == 0, "counter followed cursor to nonmatching row")
+  assert(not counter_text():find("/2]", 1, true), "stale counter rendered on nonmatching row")
+  input("k")
+  assert(marks() == 1 and counter_text():find("[1/2]", 1, true), "counter did not return on match")
+  input("n")
+  assert(marks() == 1 and counter_text():find("[2/2]", 1, true), "next match counter incorrect")
+  input("N")
+  assert(marks() == 1 and counter_text():find("[1/2]", 1, true), "previous match counter incorrect")
   input(":nohlsearch<CR>")
   assert(marks() == 0, "nohlsearch left a counter")
 end, debug.traceback)

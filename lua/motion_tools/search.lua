@@ -29,7 +29,7 @@ function M.show(pattern)
     vim.fn.searchcount,
     { pattern = pattern, recompute = 1, maxcount = config.max_count, timeout = config.timeout }
   )
-  if not ok or not count.total or count.total == 0 then
+  if not ok or not count.total or count.total == 0 or count.exact_match ~= 1 then
     return
   end
   local buf, cursor = vim.api.nvim_get_current_buf(), vim.api.nvim_win_get_cursor(0)
