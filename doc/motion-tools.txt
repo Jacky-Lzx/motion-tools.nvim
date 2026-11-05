@@ -139,8 +139,10 @@ Search direction, wrapping, word boundaries and the / register are native.
 The lens shows [current/total] at the cursor line. Counts come from |searchcount()|
 with a time and count budget; '+' indicates a capped count, and an ellipsis
 indicates a timeout. Setup refreshes feedback after cursor/window changes and
-native / or ? command-line input, even with mappings=false. Invalid/incomplete
-patterns and empty results clear the lens. Insert mode and :nohlsearch clear it.
+when native / or ? command-line input ends, even with mappings=false. The lens
+is hidden while editing the command line so it cannot interrupt incremental
+search highlighting. Invalid patterns, empty results, Insert mode and
+:nohlsearch clear it.
 
 Command-line labels:
 >

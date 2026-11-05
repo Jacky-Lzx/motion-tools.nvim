@@ -53,9 +53,9 @@ function M.refresh()
       return
     end
     local cmdtype = vim.fn.getcmdtype()
-    if cmdtype == "/" or cmdtype == "?" then
-      M.show(vim.fn.getcmdline())
-    elseif cmdtype == "" then
+    -- Updating source extmarks during incsearch invalidates its current-match
+    -- highlight. A floating cmdline/menu can flush that intermediate frame.
+    if cmdtype == "" then
       M.show()
     end
   end)
@@ -68,11 +68,11 @@ function M.setup()
     return
   end
   vim.api.nvim_create_autocmd(
-    { "CursorMoved", "TextChanged", "BufEnter", "WinEnter", "CmdlineChanged", "CmdlineLeave" },
+    { "CursorMoved", "TextChanged", "BufEnter", "WinEnter", "CmdlineLeave" },
     { group = group, callback = M.refresh }
   )
   vim.api.nvim_create_autocmd(
-    { "InsertEnter", "BufLeave", "WinLeave" },
+    { "InsertEnter", "BufLeave", "WinLeave", "CmdlineEnter" },
     { group = group, callback = M.clear }
   )
   vim.api.nvim_create_autocmd(
