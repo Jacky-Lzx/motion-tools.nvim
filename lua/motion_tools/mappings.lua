@@ -1,18 +1,24 @@
 local M = { owned = {} }
 
 function M.setup(enabled)
+  local snapshots = {}
   for _, item in ipairs(M.owned) do
-    for _, current in ipairs(vim.api.nvim_get_keymap(item.mode)) do
-      current.buf = nil
-      if current.lhs == item.lhs and vim.deep_equal(current, item.installed) then
-        pcall(vim.keymap.del, item.mode, item.lhs)
+    if not snapshots[item.mode] then
+      snapshots[item.mode] = {}
+      for _, current in ipairs(vim.api.nvim_get_keymap(item.mode)) do
+        current.buf = nil
+        snapshots[item.mode][current.lhs] = current
       end
+    end
+    local current = snapshots[item.mode][item.lhs]
+    if current and vim.deep_equal(current, item.installed) then
+      vim.keymap.del(item.mode, item.lhs)
     end
   end
   M.owned = {}
-  if not enabled then
+  if enabled == nil then
     return
-  end
+  end -- Dispose without reinstalling endpoints.
   local tools = require("motion_tools")
   local function map(modes, lhs, callback, desc, expr)
     for _, mode in ipairs(modes) do
@@ -23,17 +29,14 @@ function M.setup(enabled)
           callback,
           { desc = "[Motion] " .. desc, silent = true, expr = expr }
         )
-        local installed
-        for _, current in ipairs(vim.api.nvim_get_keymap(mode)) do
-          if current.callback == callback then
-            current.buf = nil
-            installed = current
-            break
-          end
-        end
+        local installed = vim.fn.maparg(lhs, mode, false, true)
         M.owned[#M.owned + 1] = { mode = mode, lhs = installed.lhs, installed = installed }
       end
     end
+  end
+  require("motion_tools.textobject_mappings").setup(map, enabled)
+  if not enabled then
+    return
   end
   map({ "n", "x", "o" }, "<leader>f", tools.jump, "Jump")
   map({ "n", "x", "o" }, "<leader>F", tools.treesitter, "Select syntax node")

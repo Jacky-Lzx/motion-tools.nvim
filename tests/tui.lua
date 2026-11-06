@@ -623,6 +623,32 @@ if vim.env.MOTION_TOOLS_PARSER_DIR then
   end)
 end
 
+local function object_source()
+  reset({ "xx ((中)) tail" }, 1, 5)
+end
+case("object-boundary-start", "g[b", object_source, function()
+  position(1, 4)
+end)
+case("object-boundary-count", "2g]b", object_source, function()
+  position(1, 10)
+end)
+case("object-boundary-escape", "g[\27", object_source, function()
+  position(1, 5)
+end)
+case("object-boundary-control-c", "g]", function()
+  object_source()
+  local boundary = tools.object_boundary
+  tools.object_boundary = function(...)
+    tools.object_boundary = boundary
+    -- Signal after the prefix was consumed, before getcharstr waits for the id.
+    continuation("\3")
+    return boundary(...)
+  end
+end, function()
+  position(1, 5)
+  check(text() == "xx ((中)) tail", "Ctrl-C changed source")
+end)
+
 local function finish(ok, message)
   if finished then
     return

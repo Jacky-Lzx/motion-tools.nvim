@@ -7,6 +7,28 @@ M.defaults = {
   max_matches = 1000,
   search = { enabled = true, timeout = 100, max_count = 9999, center = true },
   mappings = false,
+  textobjects = {
+    mappings = {
+      inside = false,
+      around = false,
+      inside_next = false,
+      around_next = false,
+      inside_prev = false,
+      around_prev = false,
+      goto_start = false,
+      goto_end = false,
+    },
+    search = { lines = 500, max_bytes = 1024 * 1024 },
+    objects = {},
+    treesitter = {
+      f = { inside = "function.inner", around = "function.outer" },
+      c = { inside = "class.inner", around = "class.outer" },
+      o = {
+        inside = { "block.inner", "conditional.inner", "loop.inner" },
+        around = { "block.outer", "conditional.outer", "loop.outer" },
+      },
+    },
+  },
 }
 
 function M.resolve(opts)
@@ -14,6 +36,18 @@ function M.resolve(opts)
     error("motion-tools: options must be a table")
   end
   local config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
+  local objects = config.textobjects
+  assert(
+    objects.search.lines >= 0 and objects.search.lines % 1 == 0,
+    "textobjects.search.lines must be a nonnegative integer"
+  )
+  assert(objects.search.max_bytes > 0, "textobjects.search.max_bytes must be positive")
+  for name, lhs in pairs(objects.mappings) do
+    assert(
+      type(lhs) == "string" or lhs == false,
+      "text-object mapping " .. name .. " must be a string or false"
+    )
+  end
   assert(
     type(config.labels) == "string" and #config.labels >= 2,
     "motion-tools: labels need at least two ASCII letters"

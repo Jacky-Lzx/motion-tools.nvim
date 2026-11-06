@@ -8,6 +8,8 @@ CONTENTS                                                     *motion-tools*
     Syntax selections             |motion-tools-treesitter|
     Search feedback               |motion-tools-search|
     Navigation                    |motion-tools-navigate|
+    Object boundaries             |motion-tools-object-boundary|
+    Text objects                  |motion-tools-textobjects|
     Options                       |motion-tools-options|
     Commands and highlights       |motion-tools-commands|
 
@@ -187,6 +189,64 @@ in that direction. buffer, quickfix, location and jump mappings use Normal mode;
 diagnostic, indent and treesitter also support Visual and pending operators.
 Empty targets are safe no-ops and cancel a pending operator. Native buffer/list
 commands retain modified-buffer protection and report their usual errors.
+
+=============================================================================
+OBJECT BOUNDARIES                              *motion-tools-object-boundary*
+>
+    require('motion_tools').object_boundary('start', { id = 'f', count = 2 })
+<
+With no opts.id, read an object key. edge is 'start' or 'end'; opts.count defaults
+to v:count1. Jump to the around range's start or exclusive finish, recording the
+previous context mark. EOL uses Neovim's normal clamping. Esc/Ctrl-C and missing
+objects return false without moving. Success returns true.
+
+TEXT OBJECTS                                       *motion-tools-textobjects*
+>
+    require('motion_tools').setup({
+      textobjects = {
+        search = { lines = 500, max_bytes = 1024 * 1024 },
+        objects = {},
+        treesitter = { f = { inside = 'function.inner', around = 'function.outer' } },
+      },
+    })
+    vim.keymap.set({'o', 'x'}, 'i', '<Plug>(MotionTools-inside)')
+    vim.keymap.set({'o', 'x'}, 'a', '<Plug>(MotionTools-around)')
+    vim.keymap.set('n', 'g[', '<Plug>(MotionTools-goto_start)')
+    vim.keymap.set('n', 'g]', '<Plug>(MotionTools-goto_end)')
+<
+Setup registers these endpoints and inside_next/around_next/inside_prev/around_prev.
+No user keys are assigned by default. mappings=true enables i/a/in/an/il/al and
+g[/g]. Individual opt-in textobjects.mappings entries also accept explicit keys.
+Counts select enclosing objects, or the Nth next/previous object. Visual
+selection expands to containing objects. Native w/W/s/p pass through unchanged.
+
+Objects: b/( )/[ ]/{ } brackets; q/quotes strings; a arguments; u/U calls;
+d digits; e subwords; _ underscore segments; space whitespace; t tags; </> angle
+brackets; i indentation; g buffer; f/c/o function/class/block Tree-sitter ranges.
+Empty objects support native change, registers, undo and dot repeat. Other
+operators cancel on zero-width objects. Scanners recognize ordinary quotes and
+brackets, not comments or specialized language literals. Optional parsers and
+queries handle language-specific objects. Queries and licenses ship here;
+see THIRD_PARTY.md. Installed parsers remain externally managed.
+
+find_object(id, kind, opts) returns a range or nil. kind is 'inside' or 'around'.
+Options: buf, zero-based pos, count, direction ('current'/'next'/'prev'), and a
+reference range for Visual expansion. select_object(id, kind, opts) selects it.
+Ranges have zero-based UTF-8 byte start/finish pairs; finish is exclusive.
+Linewise ranges include both endpoint rows. motion_tools.range supplies compare,
+validation, native Visual capture and selection. It does not modify buffer text.
+
+Custom objects under textobjects.objects receive {id,kind,buf,pos,first,last},
+with an exclusive last row. Return a list of valid ranges without editing text;
+false disables an object. Search limits bound lexical/indentation work, not the
+whole-buffer object. Tree-sitter queries use the line window including injected
+languages. Quantified captures merge all matched sibling nodes.
+
+Startup and ordinary Insert do not load object scanning, queries, range logic or
+selection. They load on first corresponding use, independently of editing-tools.
+User MotionToolsObjectCancelled notifies editing integrations when an object
+motion fails. Native empty-object change is adapted internally without exposing
+its temporary placeholder to user registers.
 
 =============================================================================
 OPTIONS                                                *motion-tools-options*

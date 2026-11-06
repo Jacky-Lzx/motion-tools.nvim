@@ -22,7 +22,7 @@ function M.dispose()
   end
   local mappings = package.loaded["motion_tools.mappings"]
   if mappings then
-    mappings.setup(false)
+    mappings.setup(nil)
   end
   local repeat_state = package.loaded["motion_tools.repeat"]
   if repeat_state then
@@ -119,6 +119,22 @@ function M.navigate(target, direction, opts)
     require("motion_tools.session").cancel_operator()
   end
   return ok and result or false
+end
+
+function M.find_object(id, kind, opts)
+  return require("motion_tools.objects").find(id, kind, opts)
+end
+
+function M.select_object(id, kind, opts)
+  return require("motion_tools.objects").select(id, kind, opts)
+end
+
+function M._select_object(...)
+  return require("motion_tools.textobjects").select_motion(...)
+end
+
+function M.object_boundary(edge, opts)
+  return require("motion_tools.object").jump(edge, opts)
 end
 
 function M.search(key)
