@@ -3,7 +3,8 @@ local M = { owned = {} }
 function M.setup(enabled)
   for _, item in ipairs(M.owned) do
     for _, current in ipairs(vim.api.nvim_get_keymap(item.mode)) do
-      if current.lhs == item.lhs and current.callback == item.callback then
+      current.buf = nil
+      if current.lhs == item.lhs and vim.deep_equal(current, item.installed) then
         pcall(vim.keymap.del, item.mode, item.lhs)
       end
     end
@@ -22,8 +23,15 @@ function M.setup(enabled)
           callback,
           { desc = "[Motion] " .. desc, silent = true, expr = expr }
         )
-        M.owned[#M.owned + 1] =
-          { mode = mode, lhs = vim.fn.maparg(lhs, mode, false, true).lhs, callback = callback }
+        local installed
+        for _, current in ipairs(vim.api.nvim_get_keymap(mode)) do
+          if current.callback == callback then
+            current.buf = nil
+            installed = current
+            break
+          end
+        end
+        M.owned[#M.owned + 1] = { mode = mode, lhs = installed.lhs, installed = installed }
       end
     end
   end

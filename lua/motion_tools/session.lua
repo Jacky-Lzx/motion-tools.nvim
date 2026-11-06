@@ -71,7 +71,16 @@ end
 
 -- A synchronous reader keeps native operator-pending/Visual semantics intact.
 -- UI events are processed by getcharstr(); every exit restores owned UI state.
+function M.cancel()
+  if M.active then
+    M.active = false
+    View.clear()
+    vim.api.nvim_feedkeys(key("<Esc>"), "ni", false)
+  end
+end
+
 function M.run(opts)
+  Repeat.setup()
   if M.active then
     return false
   end
@@ -105,7 +114,7 @@ function M.run(opts)
   local ok, err = xpcall(function()
     local matches, warning
     local dirty = true
-    while true do
+    while M.active do
       if not vim.api.nvim_win_is_valid(source) then
         break
       end
@@ -143,6 +152,9 @@ function M.run(opts)
         "motion-tools " .. message .. "  [" .. #matches .. "]" .. (warning and " " .. warning or "")
       )
       local char = vim.fn.getcharstr()
+      if not M.active then
+        break
+      end
       if char == key("<Esc>") or char == key("<C-c>") then
         break
       end

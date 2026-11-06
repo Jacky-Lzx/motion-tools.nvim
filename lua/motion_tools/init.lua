@@ -2,11 +2,33 @@ local Config = require("motion_tools.config")
 local M = {}
 
 function M.setup(opts)
+  assert(opts == nil or type(opts) == "table", "motion-tools.nvim: setup expects a table")
+  opts = vim.deepcopy(opts or {})
   local options = Config.resolve(opts)
   Config.options = options
   require("motion_tools.view").highlights()
   require("motion_tools.search").setup()
   require("motion_tools.mappings").setup(options.mappings)
+end
+
+function M.dispose()
+  local session = package.loaded["motion_tools.session"]
+  if session then
+    session.cancel()
+  end
+  local search = package.loaded["motion_tools.search"]
+  if search then
+    search.dispose()
+  end
+  local mappings = package.loaded["motion_tools.mappings"]
+  if mappings then
+    mappings.setup(false)
+  end
+  local repeat_state = package.loaded["motion_tools.repeat"]
+  if repeat_state then
+    repeat_state.dispose()
+  end
+  Config.options = Config.resolve()
 end
 
 function M.jump(opts)

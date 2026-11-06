@@ -111,3 +111,15 @@ Commands belong to the plugin; choose global entry keys and short aliases in
 your configuration. Registration reports same-name conflicts without replacing
 user commands. Reconfiguration refreshes only commands still owned by this
 plugin, and cleanup preserves subsequent user replacements.
+
+## Setup contract
+
+`setup(nil)` uses defaults. Configuration must be a table; caller-owned tables
+are copied before use. Invalid configuration types do not replace live handlers
+or commands. Repeating setup must not accumulate automatic registrations.
+
+`setup(opts)` validates fresh default-based options before updating search and
+mappings. `dispose()` cancels an active jump without moving or editing source,
+releases search/redo observers and unchanged owned mappings, and resets options.
+It is repeatable; later setup or an explicit jump can establish its needed
+observers again. User mapping replacements remain untouched.

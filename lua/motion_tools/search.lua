@@ -90,4 +90,9 @@ function M.setup()
   })
 end
 
+function M.dispose()
+  M.clear()
+  pcall(vim.api.nvim_del_augroup_by_name, "MotionToolsSearch")
+end
+
 return M
