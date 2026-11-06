@@ -104,3 +104,10 @@ include real Tree-sitter tests. The suite exercises actual PTY input for jumps,
 operators, registers, Visual modes, Unicode, windows, search and cancellation.
 `MOTION_TOOLS_NVIM_INIT=/path/to/init.lua python3 tests/tui.py` runs the same
 workflows in a configured session with temporary mappings and isolated test state.
+
+## Command ownership
+
+Commands belong to the plugin; choose global entry keys and short aliases in
+your configuration. Registration reports same-name conflicts without replacing
+user commands. Reconfiguration refreshes only commands still owned by this
+plugin, and cleanup preserves subsequent user replacements.

@@ -7,7 +7,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
     require("motion_tools.view").highlights()
   end,
 })
-vim.api.nvim_create_user_command("MotionTools", function(opts)
+require("motion_tools.user_command").create("MotionTools", function(opts)
   local tools = require("motion_tools")
   local action = opts.fargs[1] or "jump"
   if action == "jump" or action == "lines" or action == "treesitter" or action == "lens" then
