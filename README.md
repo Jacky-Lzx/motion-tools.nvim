@@ -211,3 +211,9 @@ mappings. `dispose()` cancels an active jump without moving or editing source,
 releases search/redo observers and unchanged owned mappings, and resets options.
 It is repeatable; later setup or an explicit jump can establish its needed
 observers again. User mapping replacements remain untouched.
+
+## Health and inspection
+
+Health reports actionable failures and a compact result for applicable checks. Disabled,
+optional and not-yet-activated features do not warn solely because they are inactive.
+Inspection does not configure plugins, start services or install dependencies.
