@@ -187,8 +187,10 @@ See `:help motion-tools` for range semantics, options, and scope.
 ## Validation
 
 Run `sh tests/run.sh` (Neovim, Python 3, StyLua). Set
-`MOTION_TOOLS_PARSER_DIR` to a runtime directory containing `parser/lua.so` to
-include real Tree-sitter tests. The suite exercises actual PTY input for jumps,
+`MOTION_TOOLS_PARSER_DIR` to a runtime directory containing `parser/lua.so` for
+real Tree-sitter text-object fixtures. The broader query contract suite runs as
+`MOTION_TOOLS_PARSER_ROOT=/path/to/runtime sh tests/run.sh parsers`; build its
+pinned fixtures with `sh tests/install-parsers.sh /path/to/runtime`. The suite exercises actual PTY input for jumps,
 operators, registers, Visual modes, Unicode, windows, search and cancellation.
 `MOTION_TOOLS_NVIM_INIT=/path/to/init.lua python3 tests/tui.py` runs the same
 workflows in a configured session with temporary mappings and isolated test state.
@@ -217,3 +219,5 @@ observers again. User mapping replacements remain untouched.
 Health reports actionable failures and a compact result for applicable checks. Disabled,
 optional and not-yet-activated features do not warn solely because they are inactive.
 Inspection does not configure plugins, start services or install dependencies.
+
+[Test workflow](tests/README.md): registered suites, filtering, required fixtures and retained failure evidence.

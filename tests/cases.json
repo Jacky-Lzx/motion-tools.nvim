@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "default": [
+    "unit",
+    "ui",
+    "format"
+  ],
+  "defaults": {},
+  "cases": [
+    {
+      "name": "runner-contracts",
+      "suite": "unit",
+      "command": [
+        "{python}",
+        "tests/runner_checks.py"
+      ],
+      "files": [
+        "tests/runner_checks.py"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "setup_contract",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/setup_contract.lua"
+      ],
+      "files": [
+        "tests/setup_contract.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "command_ownership",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/command_ownership.lua"
+      ],
+      "files": [
+        "tests/command_ownership.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "core",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/core.lua"
+      ],
+      "files": [
+        "tests/core.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "object",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/object.lua"
+      ],
+      "files": [
+        "tests/object.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "textobjects",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/textobjects.lua"
+      ],
+      "files": [
+        "tests/textobjects.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "queries",
+      "suite": "parsers",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/queries.lua"
+      ],
+      "files": [
+        "tests/queries.lua"
+      ],
+      "timeout": 90,
+      "requires": [
+        "env:MOTION_TOOLS_PARSER_ROOT",
+        "path:$MOTION_TOOLS_PARSER_ROOT/parser/python.so"
+      ],
+      "env": {
+        "MOTION_TOOLS_REQUIRED_PARSERS": "python,rust,javascript,typescript,tsx,latex"
+      }
+    },
+    {
+      "name": "search_ui",
+      "suite": "ui",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/search_ui.lua"
+      ],
+      "files": [
+        "tests/search_ui.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "tui",
+      "suite": "ui",
+      "command": [
+        "{python}",
+        "tests/tui.py"
+      ],
+      "files": [
+        "tests/tui.py"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "stylua",
+      "suite": "format",
+      "command": [
+        "stylua",
+        "--check",
+        "lua",
+        "plugin",
+        "tests"
+      ],
+      "files": [],
+      "timeout": 90
+    }
+  ],
+  "support": {
+    "tests/tui.lua": "Loaded by tests/tui.py",
+    "tests/object_helpers.lua": "Loaded by tests/queries.lua",
+    "tests/run.sh": "Stable shell entry point for tests/run.py"
+  },
+  "manual": {
+    "tests/install-parsers.sh": "Explicit pinned parser fixture installer; run before the parsers suite"
+  }
+}

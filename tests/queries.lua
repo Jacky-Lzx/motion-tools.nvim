@@ -1,4 +1,7 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
+if vim.env.MOTION_TOOLS_PARSER_ROOT then
+  vim.opt.rtp:append(vim.env.MOTION_TOOLS_PARSER_ROOT)
+end
 local parent = vim.fn.fnamemodify(vim.fn.getcwd(), ":h")
 if vim.fn.isdirectory(parent .. "/toolchain-tools.nvim") == 1 then
   vim.opt.rtp:append(parent .. "/toolchain-tools.nvim")
@@ -39,7 +42,8 @@ local languages = {
 }
 local loaded, skipped = {}, {}
 for _, lang in ipairs(languages) do
-  if pcall(vim.treesitter.language.add, lang) then
+  local ok, available = pcall(vim.treesitter.language.add, lang)
+  if ok and available then
     local ok, query = pcall(vim.treesitter.query.get, lang, "textobjects")
     assert(ok and query, lang .. ": " .. tostring(query))
     loaded[lang] = true
@@ -49,6 +53,11 @@ for _, lang in ipairs(languages) do
   else
     skipped[#skipped + 1] = lang
   end
+end
+for _, lang in
+  ipairs(vim.split(vim.env.MOTION_TOOLS_REQUIRED_PARSERS or "", ",", { trimempty = true }))
+do
+  assert(loaded[lang], "Required parser is unavailable: " .. lang)
 end
 local examples = {
   lua = { "local function value()", "  local first = 1", "  return first", "end" },
