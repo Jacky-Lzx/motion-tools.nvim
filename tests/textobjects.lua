@@ -66,7 +66,9 @@ H.eq(vim.fn.maparg("i", "o"), "", "setup removes previous mappings")
 dofile("tests/object_helpers.lua").setup()
 
 vim.opt.runtimepath:append(
-  vim.env.EDITING_TOOLS_PARSER_DIR or vim.fn.expand("~/.local/share/nvim/site")
+  vim.env.MOTION_TOOLS_PARSER_ROOT
+    or vim.env.EDITING_TOOLS_PARSER_DIR
+    or vim.fn.expand("~/.local/share/nvim/site")
 )
 H.buffer(
   { "local function f(x)", "  return x + 1", "end", "", "local g = function() return 2 end" },

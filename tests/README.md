@@ -67,3 +67,6 @@ loaded grammars. Parser absence is checked from the API return value.
 The canonical runner copies live in `plugin-tools.nvim/tests/`. Maintainers can
 run `python3 scripts/sync-test-runner.py --check` there to detect drift, or use
 `--write` to refresh sibling copies without changing their case manifests.
+
+`MOTION_TOOLS_PARSER_ROOT` supplies the pinned parser runtime for both the native
+textobject checks and the broader grammar/query suite.
